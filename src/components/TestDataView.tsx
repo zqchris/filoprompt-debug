@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAppStore } from '@/lib/store';
 import { cn, formatDate, truncate } from '@/lib/utils';
@@ -13,10 +13,20 @@ import {
   CheckCircle2,
   XCircle,
   Play,
-  RefreshCw
+  RefreshCw,
+  MessageSquare,
+  FileCheck,
+  ListTodo
 } from 'lucide-react';
-import { TestEmail } from '@/types';
+import { TestEmail, GoldenResult } from '@/types';
 import { BatchTestDialog } from './BatchTestDialog';
+
+// Golden Results 状态类型
+type GoldenStatus = {
+  reply_email: boolean;
+  summarize: boolean;
+  todo: boolean;
+};
 
 export function TestDataView() {
   const { emails, setEmails, addEmails, removeEmail, setSelectedEmail, setCurrentView } = useAppStore();
@@ -24,6 +34,42 @@ export function TestDataView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBatchDialog, setShowBatchDialog] = useState(false);
   const [isReparsing, setIsReparsing] = useState(false);
+  const [goldenStatuses, setGoldenStatuses] = useState<Record<string, GoldenStatus>>({});
+
+  // 加载所有邮件的 Golden Results 状态
+  useEffect(() => {
+    const loadGoldenStatuses = async () => {
+      try {
+        const res = await fetch('/api/golden-results');
+        if (res.ok) {
+          const result = await res.json();
+          if (result.success && result.data) {
+            // 按邮件 ID 和操作类型分组
+            const statuses: Record<string, GoldenStatus> = {};
+            (result.data as GoldenResult[]).forEach((gr) => {
+              if (!statuses[gr.emailId]) {
+                statuses[gr.emailId] = { reply_email: false, summarize: false, todo: false };
+              }
+              if (gr.operationType === 'reply_email') {
+                statuses[gr.emailId].reply_email = true;
+              } else if (gr.operationType === 'summarize') {
+                statuses[gr.emailId].summarize = true;
+              } else if (gr.operationType === 'todo') {
+                statuses[gr.emailId].todo = true;
+              }
+            });
+            setGoldenStatuses(statuses);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load golden statuses:', error);
+      }
+    };
+
+    if (emails.length > 0) {
+      loadGoldenStatuses();
+    }
+  }, [emails]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -242,9 +288,50 @@ export function TestDataView() {
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-filo-text truncate">
-                    {email.subject}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-filo-text truncate">
+                      {email.subject}
+                    </h3>
+                    {/* Golden Results 状态图标 */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium",
+                          goldenStatuses[email.id]?.reply_email
+                            ? "bg-green-500/20 text-green-400"
+                            : "bg-filo-bg text-filo-text-muted/50"
+                        )}
+                        title={goldenStatuses[email.id]?.reply_email ? "回信：已有优质答案" : "回信：未设置优质答案"}
+                      >
+                        <MessageSquare className="w-3 h-3" />
+                        回信
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium",
+                          goldenStatuses[email.id]?.summarize
+                            ? "bg-blue-500/20 text-blue-400"
+                            : "bg-filo-bg text-filo-text-muted/50"
+                        )}
+                        title={goldenStatuses[email.id]?.summarize ? "总结：已有优质答案" : "总结：未设置优质答案"}
+                      >
+                        <FileCheck className="w-3 h-3" />
+                        总结
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium",
+                          goldenStatuses[email.id]?.todo
+                            ? "bg-purple-500/20 text-purple-400"
+                            : "bg-filo-bg text-filo-text-muted/50"
+                        )}
+                        title={goldenStatuses[email.id]?.todo ? "TODO：已有优质答案" : "TODO：未设置优质答案"}
+                      >
+                        <ListTodo className="w-3 h-3" />
+                        TODO
+                      </span>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-4 mt-1 text-sm text-filo-text-muted">
                     <span className="flex items-center gap-1">
                       <Mail className="w-3.5 h-3.5" />
