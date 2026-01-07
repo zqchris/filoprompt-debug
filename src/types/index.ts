@@ -72,7 +72,11 @@ export type AIProvider = 'openai' | 'gemini';
 export interface AIRequestConfig {
   provider: AIProvider;
   model: string;
-  prompt: string;
+  // 新的分离模式：systemPrompt + userMessage
+  systemPrompt?: string;   // 系统指令（我们调试的主要 prompt）
+  userMessage?: string;    // 用户输入（API 中作为 user 角色）
+  // 旧的单 prompt 模式（向后兼容）
+  prompt?: string;
   temperature?: number;
   maxTokens?: number;
 }

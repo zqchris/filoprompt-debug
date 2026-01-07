@@ -36,11 +36,14 @@ export function PromptPlayground() {
     setBlameAnalysis(null);
     setHumanCritique('');
 
-    // 构建最终 prompt（替换变量 + 自动附加邮件上下文）
-    const processedPrompt = buildFinalPrompt(currentPrompt, {
+    // 构建 System Prompt（替换变量 + 自动附加邮件上下文）
+    // 注意：userInput 不嵌入到 system prompt 中，而是作为单独的 user message 发送
+    const systemPrompt = buildFinalPrompt(currentPrompt, {
       email: selectedEmail,
       senderName: promptConfig.senderContext.name,
       senderEmail: promptConfig.senderContext.email,
+      // userInput 保留在 system prompt 变量中，供某些场景使用
+      // 但主要是作为 user message 发送
       userInput: promptConfig.userInput,
       style: promptConfig.styleStrategy,
       customInstruction: promptConfig.customInstruction,
@@ -53,6 +56,9 @@ export function PromptPlayground() {
       profiles: promptConfig.profiles,
     });
 
+    // User Message：用户输入作为 API 的 user 角色发送
+    const userMessage = promptConfig.userInput || '';
+
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -62,7 +68,8 @@ export function PromptPlayground() {
           threadEmailId: selectedEmail?.id,
           provider: aiProvider,
           model: aiModel,
-          customPrompt: processedPrompt,
+          customSystemPrompt: systemPrompt,
+          customUserMessage: userMessage,
         }),
       });
 

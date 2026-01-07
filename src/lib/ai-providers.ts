@@ -37,10 +37,24 @@ async function callOpenAI(config: AIRequestConfig): Promise<AIResponse> {
   const model = config.model || 'gpt-5.2-chat-latest';
   const modelType = getModelType(model);
 
+  // 构建 messages 数组
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+  
+  // 如果有 systemPrompt + userMessage，使用分离模式
+  if (config.systemPrompt || config.userMessage) {
+    if (config.systemPrompt) {
+      messages.push({ role: 'system', content: config.systemPrompt });
+    }
+    messages.push({ role: 'user', content: config.userMessage || '' });
+  } else {
+    // 向后兼容：单 prompt 模式
+    messages.push({ role: 'user', content: config.prompt || '' });
+  }
+
   // 基础参数
   const requestParams: any = {
     model,
-    messages: [{ role: 'user', content: config.prompt }],
+    messages,
   };
 
   // 根据模型类型设置参数
@@ -92,11 +106,23 @@ async function callGemini(config: AIRequestConfig): Promise<AIResponse> {
   const client = getGeminiClient();
   const startTime = Date.now();
 
-  const model = client.getGenerativeModel({ 
-    model: config.model || 'gemini-2.5-flash' 
-  });
+  // Gemini 支持 systemInstruction 作为 system prompt
+  // 参考: https://ai.google.dev/gemini-api/docs/system-instructions
+  const modelConfig: any = {
+    model: config.model || 'gemini-2.5-flash',
+  };
+  
+  // 如果有 systemPrompt，使用 systemInstruction
+  if (config.systemPrompt) {
+    modelConfig.systemInstruction = config.systemPrompt;
+  }
 
-  const result = await model.generateContent(config.prompt);
+  const model = client.getGenerativeModel(modelConfig);
+
+  // 确定用户消息内容
+  const userContent = config.userMessage || config.prompt || '';
+  
+  const result = await model.generateContent(userContent);
   const response = result.response;
   const text = response.text();
 

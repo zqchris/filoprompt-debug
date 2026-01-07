@@ -23,14 +23,16 @@ export async function POST(request: NextRequest) {
       provider,
       model,
       saveResult = false,
-      customPrompt,  // 直接传入的 prompt（已经替换了变量的）
+      customSystemPrompt,  // 自定义 system prompt（已替换变量的）
+      customUserMessage,   // 自定义 user message
     } = body as {
       config: PromptTestConfig;
       threadEmailId?: string;
       provider?: AIProvider;
       model?: string;
       saveResult?: boolean;
-      customPrompt?: string;
+      customSystemPrompt?: string;
+      customUserMessage?: string;
     };
 
     // 获取选中的测试邮件（如果有）
@@ -39,18 +41,25 @@ export async function POST(request: NextRequest) {
       threadEmail = getTestEmailById(threadEmailId);
     }
 
-    // 获取 prompt：优先使用传入的 customPrompt，否则从数据库获取并替换变量
-    let generatedPrompt = customPrompt;
+    // 构建 system prompt：优先使用传入的 customSystemPrompt，否则从数据库获取并替换变量
+    let systemPrompt = customSystemPrompt;
     
-    if (!generatedPrompt) {
+    if (!systemPrompt) {
       const savedPrompt = getOperationPrompt(config.operationType);
       if (savedPrompt) {
-        generatedPrompt = replaceDynamicVariables(savedPrompt, {
+        systemPrompt = replaceDynamicVariables(savedPrompt, {
           email: threadEmail,
           senderName: config.senderContext.name,
           senderEmail: config.senderContext.email,
           userInput: config.userInput,
           style: config.styleStrategy,
+          customInstruction: config.customInstruction,
+          operationType: config.operationType,
+          hasExternalSignature: config.senderContext.hasExternalSignature,
+          profiles: config.profiles,
+          allMails: config.allMails,
+          locale: config.locale,
+          category: config.category,
         });
       } else {
         return NextResponse.json(
@@ -60,24 +69,33 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    if (!generatedPrompt.trim()) {
+    if (!systemPrompt.trim()) {
       return NextResponse.json(
-        { success: false, error: 'Prompt 不能为空' },
+        { success: false, error: 'System Prompt 不能为空' },
         { status: 400 }
       );
     }
+
+    // 构建 user message：使用 customUserMessage 或 config.userInput
+    const userMessage = customUserMessage || config.userInput || '';
 
     // 获取 AI 配置
     const defaultConfig = getDefaultAIConfig();
     const aiProvider = provider || defaultConfig.provider;
     const aiModel = model || defaultConfig.model;
 
-    // 调用 AI
+    // 调用 AI，使用分离的 system/user 模式
     const aiResponse = await callAI({
       provider: aiProvider,
       model: aiModel,
-      prompt: generatedPrompt,
+      systemPrompt,
+      userMessage,
     });
+
+    // 用于展示的完整 prompt（system + user 合并显示）
+    const displayPrompt = userMessage 
+      ? `[System Prompt]\n${systemPrompt}\n\n[User Message]\n${userMessage}`
+      : systemPrompt;
 
     // 可选：保存结果
     if (saveResult && threadEmailId) {
@@ -85,7 +103,7 @@ export async function POST(request: NextRequest) {
         id: generateId(),
         testEmailId: threadEmailId,
         config,
-        generatedPrompt,
+        generatedPrompt: displayPrompt,
         aiResponse,
         createdAt: new Date().toISOString(),
       };
@@ -95,7 +113,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        generatedPrompt,
+        generatedPrompt: displayPrompt,
+        systemPrompt,
+        userMessage,
         aiResponse,
       },
     });

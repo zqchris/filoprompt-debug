@@ -235,17 +235,44 @@ ${selectedEmail ? '可使用 {{MAIL}} 引入选中的邮件内容' : '请先选�
 
       {/* 预览区（仅当有 prompt 时显示） */}
       {localPrompt && (
-        <div className="border-t border-filo-border p-4">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs text-filo-text-muted uppercase tracking-wide">
-              预览（变量已替换）
-            </label>
+        <div className="border-t border-filo-border p-4 space-y-3">
+          {/* System Prompt 预览 */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded font-medium">
+                System
+              </span>
+              <label className="text-xs text-filo-text-muted uppercase tracking-wide">
+                预览（变量已替换）
+              </label>
+            </div>
+            <div className="bg-filo-bg/30 rounded-lg p-3 max-h-28 overflow-y-auto border border-blue-500/20">
+              <pre className="text-xs text-filo-text-muted font-mono whitespace-pre-wrap break-words">
+                {previewPrompt || '（空）'}
+              </pre>
+            </div>
           </div>
-          <div className="bg-filo-bg/30 rounded-lg p-3 max-h-32 overflow-y-auto">
-            <pre className="text-xs text-filo-text-muted font-mono whitespace-pre-wrap break-words">
-              {previewPrompt || '（空）'}
-            </pre>
+          
+          {/* User Message 预览 */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded font-medium">
+                User
+              </span>
+              <label className="text-xs text-filo-text-muted">
+                用户输入（单独作为 user message 发送）
+              </label>
+            </div>
+            <div className="bg-filo-bg/30 rounded-lg p-3 border border-green-500/20">
+              <pre className="text-xs text-filo-text-muted font-mono whitespace-pre-wrap break-words">
+                {promptConfig.userInput || '（无用户输入）'}
+              </pre>
+            </div>
           </div>
+          
+          <p className="text-xs text-filo-text-muted/70 italic">
+            💡 System Prompt 作为系统指令，User Message 作为用户输入分别发送给 AI
+          </p>
         </div>
       )}
     </div>
