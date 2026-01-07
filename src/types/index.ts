@@ -34,7 +34,8 @@ export type StyleStrategy =
 // 每个 Operation 的 Prompt 配置
 export interface OperationPrompt {
   operationType: OperationType;
-  prompt: string;  // 用户自定义的 prompt，可以包含动态变量
+  prompt: string;  // System Prompt，可以包含动态变量
+  userMessage: string;  // User Message 模板，可以包含动态变量
   updatedAt: string;
 }
 

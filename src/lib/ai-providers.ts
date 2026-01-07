@@ -116,6 +116,19 @@ async function callGemini(config: AIRequestConfig): Promise<AIResponse> {
   if (config.systemPrompt) {
     modelConfig.systemInstruction = config.systemPrompt;
   }
+  
+  // Gemini 3 thinking 模式配置
+  // 设置为 false 关闭 thinking 模式，减少延迟和 token 消耗
+  const isGemini3 = config.model?.includes('gemini-3');
+  if (isGemini3) {
+    modelConfig.generationConfig = {
+      ...modelConfig.generationConfig,
+      // 关闭 thinking 模式
+      thinkingConfig: {
+        thinkingBudget: 0,  // 0 = 关闭 thinking
+      },
+    };
+  }
 
   const model = client.getGenerativeModel(modelConfig);
 

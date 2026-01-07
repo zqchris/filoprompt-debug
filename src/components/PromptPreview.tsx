@@ -12,6 +12,7 @@ export function PromptPreview() {
     aiModel, 
     selectedEmail,
     operationPrompts,
+    operationUserMessages,
     setOperationPrompt,
   } = useAppStore();
   
@@ -20,16 +21,19 @@ export function PromptPreview() {
   const [saved, setSaved] = useState(false);
   const [showVariables, setShowVariables] = useState(false);
   const [localPrompt, setLocalPrompt] = useState('');
+  const [localUserMessage, setLocalUserMessage] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
 
-  // 当前 operation 的 prompt
+  // 当前 operation 的 prompt 和 user message
   const currentOperationPrompt = operationPrompts[promptConfig.operationType] || '';
+  const currentOperationUserMessage = operationUserMessages[promptConfig.operationType] || '';
 
-  // 初始化或切换 operation 时更新本地 prompt
+  // 初始化或切换 operation 时更新本地状态
   useEffect(() => {
     setLocalPrompt(currentOperationPrompt);
+    setLocalUserMessage(currentOperationUserMessage);
     setHasChanges(false);
-  }, [promptConfig.operationType, currentOperationPrompt]);
+  }, [promptConfig.operationType, currentOperationPrompt, currentOperationUserMessage]);
 
   // 分组的动态变量
   const groupedVariables = getGroupedVariables(promptConfig.operationType);
@@ -55,13 +59,18 @@ export function PromptPreview() {
   const previewPrompt = buildFinalPrompt(localPrompt, variableContext);
   
   // 预览 User Message（也支持变量替换）
-  const previewUserMessage = promptConfig.userInput 
-    ? buildFinalPrompt(promptConfig.userInput, variableContext)
+  const previewUserMessage = localUserMessage 
+    ? buildFinalPrompt(localUserMessage, variableContext)
     : '';
 
   const handlePromptChange = (value: string) => {
     setLocalPrompt(value);
-    setHasChanges(value !== currentOperationPrompt);
+    setHasChanges(value !== currentOperationPrompt || localUserMessage !== currentOperationUserMessage);
+  };
+
+  const handleUserMessageChange = (value: string) => {
+    setLocalUserMessage(value);
+    setHasChanges(localPrompt !== currentOperationPrompt || value !== currentOperationUserMessage);
   };
 
   const handleSave = async () => {
@@ -73,12 +82,13 @@ export function PromptPreview() {
         body: JSON.stringify({
           operationType: promptConfig.operationType,
           prompt: localPrompt,
+          userMessage: localUserMessage,
         }),
       });
 
       const result = await response.json();
       if (result.success) {
-        setOperationPrompt(promptConfig.operationType, localPrompt);
+        setOperationPrompt(promptConfig.operationType, localPrompt, localUserMessage);
         setHasChanges(false);
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
@@ -209,10 +219,6 @@ export function PromptPreview() {
 
       {/* Prompt 编辑区 */}
       <div className="flex-1 overflow-hidden p-4 flex flex-col gap-2">
-        <label className="text-xs text-filo-text-muted uppercase tracking-wide">
-          编辑 Prompt（可使用动态变量）
-        </label>
-        
         {/* 邮件上下文提示 */}
         {['reply_email', 'forward_email', 'summarize', 'extract_action_items', 'todo'].includes(promptConfig.operationType) && !selectedEmail && (
           <div className="text-xs text-filo-warning bg-filo-warning/10 px-3 py-2 rounded-lg">
@@ -226,23 +232,50 @@ export function PromptPreview() {
           </div>
         )}
 
-        <textarea
-          value={localPrompt}
-          onChange={(e) => handlePromptChange(e.target.value)}
-          className="flex-1 w-full bg-filo-bg/50 text-filo-text text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-filo-accent/50 rounded-lg p-3 border border-filo-border"
-          placeholder={`为 "${OPERATION_LABELS[promptConfig.operationType]}" 操作编写 Prompt...
-
-${selectedEmail ? '可使用 {{MAIL}} 引入选中的邮件内容' : '请先选择测试邮件'}
-
-示例:
+        {/* System Prompt 编辑 */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded font-medium">
+              System
+            </span>
+            <label className="text-xs text-filo-text-muted">
+              System Prompt（可使用动态变量）
+            </label>
+          </div>
+          <textarea
+            value={localPrompt}
+            onChange={(e) => handlePromptChange(e.target.value)}
+            className="flex-1 w-full bg-filo-bg/50 text-filo-text text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-filo-accent/50 rounded-lg p-3 border border-blue-500/20"
+            placeholder={`System Prompt 示例:
 请帮我回复以下邮件：
 {{MAIL}}`}
-          spellCheck={false}
-        />
+            spellCheck={false}
+          />
+        </div>
+
+        {/* User Message 编辑 */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded font-medium">
+              User
+            </span>
+            <label className="text-xs text-filo-text-muted">
+              User Message 模板（可使用动态变量）
+            </label>
+          </div>
+          <textarea
+            value={localUserMessage}
+            onChange={(e) => handleUserMessageChange(e.target.value)}
+            className="flex-1 w-full bg-filo-bg/50 text-filo-text text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-filo-accent/50 rounded-lg p-3 border border-green-500/20"
+            placeholder={`User Message 示例:
+请用简洁的语言帮我总结这封邮件的要点。`}
+            spellCheck={false}
+          />
+        </div>
       </div>
 
-      {/* 预览区（仅当有 prompt 时显示） */}
-      {localPrompt && (
+      {/* 预览区（仅当有 prompt 或 userMessage 时显示） */}
+      {(localPrompt || localUserMessage) && (
         <div className="border-t border-filo-border p-4 space-y-3">
           {/* System Prompt 预览 */}
           <div>

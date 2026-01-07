@@ -88,6 +88,14 @@ export function getTestEmailCount(): number {
   return row.count;
 }
 
+export function updateTestEmailBody(id: string, body: string, bodyHtml?: string): boolean {
+  const db = getDb();
+  const result = db.prepare(`
+    UPDATE test_emails SET body = ?, body_html = ? WHERE id = ?
+  `).run(body, bodyHtml || null, id);
+  return result.changes > 0;
+}
+
 function rowToTestEmail(row: any): TestEmail {
   return {
     id: row.id,

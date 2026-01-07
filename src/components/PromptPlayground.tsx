@@ -15,6 +15,7 @@ export function PromptPlayground() {
     aiProvider,
     aiModel,
     operationPrompts,
+    operationUserMessages,
     setGeneratedPrompt,
     setAIResponse,
     isGenerating,
@@ -23,12 +24,13 @@ export function PromptPlayground() {
     setHumanCritique,
   } = useAppStore();
 
-  // 获取当前 operation 的 prompt
+  // 获取当前 operation 的 prompt 和 user message
   const currentPrompt = operationPrompts[promptConfig.operationType] || '';
+  const currentUserMessage = operationUserMessages[promptConfig.operationType] || '';
 
   const handleGenerate = async () => {
-    if (!currentPrompt.trim()) {
-      alert(`请先为 "${promptConfig.operationType}" 操作配置 Prompt`);
+    if (!currentPrompt.trim() && !currentUserMessage.trim()) {
+      alert(`请先为 "${promptConfig.operationType}" 操作配置 Prompt 或 User Message`);
       return;
     }
 
@@ -56,9 +58,9 @@ export function PromptPlayground() {
     // 构建 System Prompt（替换变量 + 自动附加邮件上下文）
     const systemPrompt = buildFinalPrompt(currentPrompt, variableContext);
 
-    // User Message：也支持动态变量替换
-    const userMessage = promptConfig.userInput 
-      ? buildFinalPrompt(promptConfig.userInput, variableContext)
+    // User Message：使用保存的模板，也支持动态变量替换
+    const userMessage = currentUserMessage 
+      ? buildFinalPrompt(currentUserMessage, variableContext)
       : '';
 
     try {
@@ -109,7 +111,7 @@ export function PromptPlayground() {
           <div className="mt-4 flex justify-center">
             <button
               onClick={handleGenerate}
-              disabled={isGenerating || !currentPrompt.trim()}
+              disabled={isGenerating || (!currentPrompt.trim() && !currentUserMessage.trim())}
               className="flex items-center gap-2 px-6 py-3 bg-filo-accent hover:bg-filo-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all shadow-lg shadow-filo-accent/20"
             >
               {isGenerating ? (

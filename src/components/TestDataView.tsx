@@ -12,7 +12,8 @@ import {
   Mail,
   CheckCircle2,
   XCircle,
-  Play
+  Play,
+  RefreshCw
 } from 'lucide-react';
 import { TestEmail } from '@/types';
 import { BatchTestDialog } from './BatchTestDialog';
@@ -22,6 +23,7 @@ export function TestDataView() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBatchDialog, setShowBatchDialog] = useState(false);
+  const [isReparsing, setIsReparsing] = useState(false);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -104,6 +106,43 @@ export function TestDataView() {
     setCurrentView('playground');
   };
 
+  // 重新解析所有邮件正文（用于修复空正文的邮件）
+  const handleReparseEmails = async (forceAll = false) => {
+    const confirmMsg = forceAll 
+      ? '确定要强制重新解析所有邮件吗？这会覆盖现有的正文内容。' 
+      : '确定要重新解析空正文的邮件吗？';
+    
+    if (!confirm(confirmMsg)) return;
+    
+    setIsReparsing(true);
+    try {
+      const response = await fetch('/api/emails/reparse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceAll }),
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        const skipped = result.data.total - result.data.updated - result.data.failed;
+        alert(`重新解析完成！\n总计: ${result.data.total} 封\n更新: ${result.data.updated} 封\n跳过: ${skipped} 封\n失败: ${result.data.failed} 封`);
+        // 重新加载邮件列表
+        const emailsRes = await fetch('/api/emails');
+        const emailsResult = await emailsRes.json();
+        if (emailsResult.success) {
+          setEmails(emailsResult.data);
+        }
+      } else {
+        alert('重新解析失败: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Reparse error:', error);
+      alert('重新解析失败');
+    } finally {
+      setIsReparsing(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Upload Zone */}
@@ -150,6 +189,15 @@ export function TestDataView() {
               </span>
             </h2>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleReparseEmails(true)}
+                disabled={isReparsing}
+                className="btn-secondary text-sm py-1.5 px-3 flex items-center gap-1"
+                title="强制重新解析所有邮件（从HTML提取正文）"
+              >
+                <RefreshCw className={cn("w-4 h-4", isReparsing && "animate-spin")} />
+                {isReparsing ? '解析中...' : '强制重解析'}
+              </button>
               <button
                 onClick={handleSelectAll}
                 className="btn-secondary text-sm py-1.5 px-3"

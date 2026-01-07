@@ -20,9 +20,10 @@ interface AppState {
   setPromptConfig: (config: Partial<PromptTestConfig>) => void;
   resetPromptConfig: () => void;
 
-  // 每个 Operation 的 Prompt 配置
+  // 每个 Operation 的 Prompt 配置（包括 system prompt 和 user message）
   operationPrompts: Record<OperationType, string>;
-  setOperationPrompt: (operationType: OperationType, prompt: string) => void;
+  operationUserMessages: Record<OperationType, string>;
+  setOperationPrompt: (operationType: OperationType, prompt: string, userMessage?: string) => void;
   setOperationPrompts: (prompts: OperationPrompt[]) => void;
 
   // 自定义 Prompt 模板（兼容旧版）
@@ -87,6 +88,15 @@ const defaultOperationPrompts: Record<OperationType, string> = {
   todo: '',
 };
 
+const defaultOperationUserMessages: Record<OperationType, string> = {
+  new_email: '',
+  reply_email: '',
+  forward_email: '',
+  summarize: '',
+  extract_action_items: '',
+  todo: '',
+};
+
 export const useAppStore = create<AppState>((set) => ({
   // 当前选中的邮件
   selectedEmail: null,
@@ -100,19 +110,25 @@ export const useAppStore = create<AppState>((set) => ({
     })),
   resetPromptConfig: () => set({ promptConfig: defaultPromptConfig }),
 
-  // 每个 Operation 的 Prompt 配置
+  // 每个 Operation 的 Prompt 配置（包括 system prompt 和 user message）
   operationPrompts: defaultOperationPrompts,
-  setOperationPrompt: (operationType, prompt) =>
+  operationUserMessages: defaultOperationUserMessages,
+  setOperationPrompt: (operationType, prompt, userMessage) =>
     set((state) => ({
       operationPrompts: { ...state.operationPrompts, [operationType]: prompt },
+      operationUserMessages: userMessage !== undefined 
+        ? { ...state.operationUserMessages, [operationType]: userMessage }
+        : state.operationUserMessages,
     })),
   setOperationPrompts: (prompts) =>
     set((state) => {
       const newPrompts = { ...state.operationPrompts };
+      const newUserMessages = { ...state.operationUserMessages };
       prompts.forEach((p) => {
         newPrompts[p.operationType] = p.prompt;
+        newUserMessages[p.operationType] = p.userMessage || '';
       });
-      return { operationPrompts: newPrompts };
+      return { operationPrompts: newPrompts, operationUserMessages: newUserMessages };
     }),
 
   // 自定义 Prompt 模板（兼容旧版）

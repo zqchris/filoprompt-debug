@@ -141,14 +141,10 @@ const OPERATION_TYPE_MAP: Record<OperationType, string> = {
   todo: 'TODO',
 };
 
-// 构建 MAIL 格式的邮件内容
+// 构建 MAIL 格式的邮件内容 - 直接使用原始邮件
 function formatMailContent(email: TestEmail): string {
-  return `From: ${email.from}
-To: ${email.to}${email.cc ? `\nCc: ${email.cc}` : ''}
-Date: ${email.date}
-Subject: ${email.subject}
-
-${email.body}`;
+  // 直接返回原始邮件内容，不做任何处理
+  return email.rawEml || '';
 }
 
 // 检测邮件语言（简化版）

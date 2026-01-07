@@ -17,7 +17,7 @@ export async function GET() {
   try {
     const db = getDb();
     const rows = db.prepare(`
-      SELECT operation_type, prompt, updated_at FROM operation_prompts
+      SELECT operation_type, prompt, user_message, updated_at FROM operation_prompts
     `).all() as any[];
 
     // 构建完整的 prompts 列表（包括未配置的）
@@ -26,6 +26,7 @@ export async function GET() {
       return {
         operationType: op,
         prompt: existing?.prompt || '',
+        userMessage: existing?.user_message || '',
         updatedAt: existing?.updated_at || new Date().toISOString(),
       };
     });
@@ -47,9 +48,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { operationType, prompt } = body as {
+    const { operationType, prompt, userMessage } = body as {
       operationType: OperationType;
       prompt: string;
+      userMessage?: string;
     };
 
     if (!operationType || !ALL_OPERATIONS.includes(operationType)) {
@@ -64,18 +66,20 @@ export async function POST(request: NextRequest) {
 
     // Upsert: 如果存在则更新，不存在则插入
     db.prepare(`
-      INSERT INTO operation_prompts (operation_type, prompt, updated_at)
-      VALUES (?, ?, ?)
+      INSERT INTO operation_prompts (operation_type, prompt, user_message, updated_at)
+      VALUES (?, ?, ?, ?)
       ON CONFLICT(operation_type) DO UPDATE SET
         prompt = excluded.prompt,
+        user_message = excluded.user_message,
         updated_at = excluded.updated_at
-    `).run(operationType, prompt, now);
+    `).run(operationType, prompt, userMessage || '', now);
 
     return NextResponse.json({
       success: true,
       data: {
         operationType,
         prompt,
+        userMessage: userMessage || '',
         updatedAt: now,
       },
     });

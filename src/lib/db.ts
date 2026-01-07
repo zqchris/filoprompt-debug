@@ -74,10 +74,11 @@ function initSchema(database: Database.Database) {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
-    -- Operation Prompt 配置表（每个 operation type 一个 prompt）
+    -- Operation Prompt 配置表（每个 operation type 一个 prompt + user message）
     CREATE TABLE IF NOT EXISTS operation_prompts (
       operation_type TEXT PRIMARY KEY,
       prompt TEXT NOT NULL DEFAULT '',
+      user_message TEXT NOT NULL DEFAULT '',
       updated_at TEXT DEFAULT (datetime('now'))
     );
 
@@ -106,6 +107,18 @@ function initSchema(database: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_test_emails_subject ON test_emails(subject);
     CREATE INDEX IF NOT EXISTS idx_test_results_email_id ON test_results(test_email_id);
   `);
+
+  // 迁移：为 operation_prompts 表添加 user_message 列（如果不存在）
+  try {
+    const columns = database.prepare("PRAGMA table_info(operation_prompts)").all() as any[];
+    const hasUserMessage = columns.some((col: any) => col.name === 'user_message');
+    if (!hasUserMessage) {
+      database.exec("ALTER TABLE operation_prompts ADD COLUMN user_message TEXT NOT NULL DEFAULT ''");
+    }
+  } catch (e) {
+    // 忽略迁移错误
+    console.log('Migration check for user_message column:', e);
+  }
 }
 
 // 通用 ID 生成
