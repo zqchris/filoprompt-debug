@@ -152,22 +152,24 @@ export function ConfigPanel() {
           这些值可通过动态变量在 Prompt 中引用
         </p>
         
-        {/* User Input - 作为 User Message 发送 */}
+        {/* User Input - 作为 User Message 发送，支持变量 */}
         <div className="p-3 bg-green-500/5 border border-green-500/20 rounded-lg">
           <label className="flex items-center gap-2 text-xs text-filo-text-muted mb-2">
             <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded text-[10px] font-medium">
               User Message
             </span>
-            用户输入 / 草稿
+            用户输入（支持变量）
           </label>
           <p className="text-[10px] text-filo-text-muted/70 mb-2">
-            此内容作为 API 中的 user 角色发送，同时可在 System Prompt 中用 <code className="text-filo-accent">{'{{EXTRA.content}}'}</code> 引用
+            作为 API 的 user 角色发送，<strong>支持所有动态变量</strong>如 {'{{MAIL}}'}, {'{{LOCALE}}'} 等
           </p>
           <textarea
             value={promptConfig.userInput}
             onChange={(e) => setPromptConfig({ userInput: e.target.value })}
-            placeholder="例如：帮我回复说我下周有空..."
-            className="w-full h-20 bg-filo-bg border border-filo-border rounded-lg py-2 px-3 text-sm text-filo-text placeholder:text-filo-text-muted/50 resize-none"
+            placeholder={`例如：
+请总结这封邮件：
+{{MAIL}}`}
+            className="w-full h-24 bg-filo-bg border border-filo-border rounded-lg py-2 px-3 text-sm text-filo-text placeholder:text-filo-text-muted/50 resize-none font-mono"
           />
         </div>
 

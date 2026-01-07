@@ -34,8 +34,8 @@ export function PromptPreview() {
   // 分组的动态变量
   const groupedVariables = getGroupedVariables(promptConfig.operationType);
 
-  // 预览完整的 prompt（包括自动附加的邮件上下文）
-  const previewPrompt = buildFinalPrompt(localPrompt, {
+  // 变量上下文（System Prompt 和 User Message 共用）
+  const variableContext = {
     email: selectedEmail,
     senderName: promptConfig.senderContext.name,
     senderEmail: promptConfig.senderContext.email,
@@ -49,7 +49,15 @@ export function PromptPreview() {
     locale: promptConfig.locale,
     category: promptConfig.category,
     profiles: promptConfig.profiles,
-  });
+  };
+
+  // 预览 System Prompt（包括自动附加的邮件上下文）
+  const previewPrompt = buildFinalPrompt(localPrompt, variableContext);
+  
+  // 预览 User Message（也支持变量替换）
+  const previewUserMessage = promptConfig.userInput 
+    ? buildFinalPrompt(promptConfig.userInput, variableContext)
+    : '';
 
   const handlePromptChange = (value: string) => {
     setLocalPrompt(value);
@@ -260,12 +268,12 @@ ${selectedEmail ? '可使用 {{MAIL}} 引入选中的邮件内容' : '请先选�
                 User
               </span>
               <label className="text-xs text-filo-text-muted">
-                用户输入（单独作为 user message 发送）
+                用户输入（变量已替换，作为 user message 发送）
               </label>
             </div>
-            <div className="bg-filo-bg/30 rounded-lg p-3 border border-green-500/20">
+            <div className="bg-filo-bg/30 rounded-lg p-3 max-h-28 overflow-y-auto border border-green-500/20">
               <pre className="text-xs text-filo-text-muted font-mono whitespace-pre-wrap break-words">
-                {promptConfig.userInput || '（无用户输入）'}
+                {previewUserMessage || '（无用户输入）'}
               </pre>
             </div>
           </div>
