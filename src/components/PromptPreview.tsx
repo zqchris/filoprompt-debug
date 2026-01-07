@@ -204,11 +204,31 @@ export function PromptPreview() {
         <label className="text-xs text-filo-text-muted uppercase tracking-wide">
           编辑 Prompt（可使用动态变量）
         </label>
+        
+        {/* 邮件上下文提示 */}
+        {['reply_email', 'forward_email', 'summarize', 'extract_action_items', 'todo'].includes(promptConfig.operationType) && !selectedEmail && (
+          <div className="text-xs text-filo-warning bg-filo-warning/10 px-3 py-2 rounded-lg">
+            💡 提示：请先在 Test Data 页面选择一封测试邮件，才能使用 {'{{MAIL}}'} 变量引入邮件内容
+          </div>
+        )}
+        
+        {selectedEmail && (
+          <div className="text-xs text-filo-success bg-filo-success/10 px-3 py-2 rounded-lg">
+            ✓ 已选择邮件，可使用 {'{{MAIL}}'} 引入完整邮件内容
+          </div>
+        )}
+
         <textarea
           value={localPrompt}
           onChange={(e) => handlePromptChange(e.target.value)}
           className="flex-1 w-full bg-filo-bg/50 text-filo-text text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-filo-accent/50 rounded-lg p-3 border border-filo-border"
-          placeholder={`为 "${OPERATION_LABELS[promptConfig.operationType]}" 操作编写 Prompt...\n\n可以使用动态变量如 {{email_body}}、{{local_time}} 等，点击上方"可用动态变量"查看全部。`}
+          placeholder={`为 "${OPERATION_LABELS[promptConfig.operationType]}" 操作编写 Prompt...
+
+${selectedEmail ? '可使用 {{MAIL}} 引入选中的邮件内容' : '请先选择测试邮件'}
+
+示例:
+请帮我回复以下邮件：
+{{MAIL}}`}
           spellCheck={false}
         />
       </div>
