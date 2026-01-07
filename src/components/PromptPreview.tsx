@@ -1,9 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Copy, Check, Save, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { getGroupedVariables, buildFinalPrompt } from '@/lib/dynamic-variables';
+
+// 防抖 hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 export function PromptPreview() {
   const { 
@@ -39,7 +51,7 @@ export function PromptPreview() {
   const groupedVariables = getGroupedVariables(promptConfig.operationType);
 
   // 变量上下文（System Prompt 和 User Message 共用）
-  const variableContext = {
+  const variableContext = useMemo(() => ({
     email: selectedEmail,
     senderName: promptConfig.senderContext.name,
     senderEmail: promptConfig.senderContext.email,
@@ -53,15 +65,23 @@ export function PromptPreview() {
     locale: promptConfig.locale,
     category: promptConfig.category,
     profiles: promptConfig.profiles,
-  };
+  }), [selectedEmail, promptConfig]);
 
-  // 预览 System Prompt（包括自动附加的邮件上下文）
-  const previewPrompt = buildFinalPrompt(localPrompt, variableContext);
+  // 使用防抖延迟预览更新（500ms），避免每次输入都重新解析大邮件
+  const debouncedPrompt = useDebounce(localPrompt, 500);
+  const debouncedUserMessage = useDebounce(localUserMessage, 500);
+
+  // 预览 System Prompt（包括自动附加的邮件上下文）- 使用防抖后的值
+  const previewPrompt = useMemo(() => 
+    buildFinalPrompt(debouncedPrompt, variableContext),
+    [debouncedPrompt, variableContext]
+  );
   
-  // 预览 User Message（也支持变量替换）
-  const previewUserMessage = localUserMessage 
-    ? buildFinalPrompt(localUserMessage, variableContext)
-    : '';
+  // 预览 User Message（也支持变量替换）- 使用防抖后的值
+  const previewUserMessage = useMemo(() => 
+    debouncedUserMessage ? buildFinalPrompt(debouncedUserMessage, variableContext) : '',
+    [debouncedUserMessage, variableContext]
+  );
 
   const handlePromptChange = (value: string) => {
     setLocalPrompt(value);
@@ -286,10 +306,15 @@ export function PromptPreview() {
               <label className="text-xs text-filo-text-muted uppercase tracking-wide">
                 预览（变量已替换）
               </label>
+              {previewPrompt.length > 2000 && (
+                <span className="text-xs text-filo-text-muted/50">
+                  ({previewPrompt.length.toLocaleString()} 字符，仅显示前 2000)
+                </span>
+              )}
             </div>
             <div className="bg-filo-bg/30 rounded-lg p-3 max-h-28 overflow-y-auto border border-blue-500/20">
               <pre className="text-xs text-filo-text-muted font-mono whitespace-pre-wrap break-words">
-                {previewPrompt || '（空）'}
+                {previewPrompt ? (previewPrompt.length > 2000 ? previewPrompt.slice(0, 2000) + '...' : previewPrompt) : '（空）'}
               </pre>
             </div>
           </div>
@@ -303,10 +328,15 @@ export function PromptPreview() {
               <label className="text-xs text-filo-text-muted">
                 用户输入（变量已替换，作为 user message 发送）
               </label>
+              {previewUserMessage.length > 2000 && (
+                <span className="text-xs text-filo-text-muted/50">
+                  ({previewUserMessage.length.toLocaleString()} 字符，仅显示前 2000)
+                </span>
+              )}
             </div>
             <div className="bg-filo-bg/30 rounded-lg p-3 max-h-28 overflow-y-auto border border-green-500/20">
               <pre className="text-xs text-filo-text-muted font-mono whitespace-pre-wrap break-words">
-                {previewUserMessage || '（无用户输入）'}
+                {previewUserMessage ? (previewUserMessage.length > 2000 ? previewUserMessage.slice(0, 2000) + '...' : previewUserMessage) : '（无用户输入）'}
               </pre>
             </div>
           </div>
