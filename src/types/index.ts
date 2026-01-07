@@ -58,6 +58,11 @@ export interface PromptTestConfig {
     hasExternalSignature: boolean;
   };
   threadContext?: TestEmail;
+  // 模拟用户口吻的变量
+  allMails?: string;     // 用户所有邮箱地址
+  locale?: string;       // 用户偏好语言
+  category?: string;     // Gmail 分类
+  profiles?: string;     // 用户档案/历史风格
 }
 
 // AI 提供商

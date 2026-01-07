@@ -71,6 +71,11 @@ const defaultPromptConfig: PromptTestConfig = {
     email: '',
     hasExternalSignature: false,
   },
+  // 模拟用户口吻的变量
+  allMails: '',
+  locale: 'en-US',
+  category: '',
+  profiles: '',
 };
 
 const defaultOperationPrompts: Record<OperationType, string> = {

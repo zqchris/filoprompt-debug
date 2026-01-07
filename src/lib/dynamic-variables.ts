@@ -10,12 +10,30 @@ export const DYNAMIC_VARIABLES: DynamicVariable[] = [
     example: '2025-01-07 15:30:00',
   },
   
-  // 用户上下文
+  // 用户上下文（模拟用户口吻）
+  {
+    name: 'ALL_MAILS',
+    placeholder: '{{ALL_MAILS}}',
+    description: '用户名和邮箱地址列表',
+    example: 'John Doe <john@example.com>, john.doe@work.com',
+  },
   {
     name: 'CUSTOM_INSTRUCTION',
     placeholder: '{{CUSTOM_INSTRUCTION}}',
     description: '用户自定义指令',
     example: 'Keep it brief and friendly',
+  },
+  {
+    name: 'LOCALE',
+    placeholder: '{{LOCALE}}',
+    description: '用户偏好语言',
+    example: 'zh-CN',
+  },
+  {
+    name: 'CATEGORY',
+    placeholder: '{{CATEGORY}}',
+    description: 'Gmail 邮件分类',
+    example: 'primary',
   },
   {
     name: 'PROFILES',
@@ -156,6 +174,10 @@ export function replaceDynamicVariables(
     operationType?: OperationType;
     hasExternalSignature?: boolean;
     profiles?: string;
+    // 新增的用户口吻变量
+    allMails?: string;
+    locale?: string;
+    category?: string;
   }
 ): string {
   let result = template;
@@ -164,8 +186,14 @@ export function replaceDynamicVariables(
   // 时间变量
   result = result.replace(/\{\{CURRENT_DATE_TIME\}\}/g, now.toLocaleString());
   
-  // 用户上下文
+  // 用户上下文（模拟用户口吻）
+  result = result.replace(/\{\{ALL_MAILS\}\}/g, context.allMails || 
+    (context.senderName && context.senderEmail 
+      ? `${context.senderName} <${context.senderEmail}>` 
+      : context.senderEmail || ''));
   result = result.replace(/\{\{CUSTOM_INSTRUCTION\}\}/g, context.customInstruction || '');
+  result = result.replace(/\{\{LOCALE\}\}/g, context.locale || 'en-US');
+  result = result.replace(/\{\{CATEGORY\}\}/g, context.category || '');
   result = result.replace(/\{\{PROFILES\}\}/g, context.profiles || '');
 
   // EXTRA 变量
@@ -236,6 +264,9 @@ export function buildFinalPrompt(
     operationType?: OperationType;
     hasExternalSignature?: boolean;
     profiles?: string;
+    allMails?: string;
+    locale?: string;
+    category?: string;
   }
 ): string {
   // 先替换变量
@@ -266,7 +297,7 @@ ${formatMailContent(context.email)}
 export function getVariablesForOperation(operationType: string): DynamicVariable[] {
   // 基础变量（所有操作都可用）
   const baseVars = DYNAMIC_VARIABLES.filter(v => 
-    ['CURRENT_DATE_TIME', 'CUSTOM_INSTRUCTION', 'PROFILES'].includes(v.name) ||
+    ['CURRENT_DATE_TIME', 'ALL_MAILS', 'CUSTOM_INSTRUCTION', 'LOCALE', 'CATEGORY', 'PROFILES'].includes(v.name) ||
     v.name.startsWith('EXTRA.')
   );
   
@@ -289,7 +320,7 @@ export function getGroupedVariables(operationType: string): Record<string, Dynam
   
   return {
     '时间': vars.filter(v => v.name === 'CURRENT_DATE_TIME'),
-    '用户上下文': vars.filter(v => ['CUSTOM_INSTRUCTION', 'PROFILES'].includes(v.name)),
+    '用户口吻': vars.filter(v => ['ALL_MAILS', 'CUSTOM_INSTRUCTION', 'LOCALE', 'CATEGORY', 'PROFILES'].includes(v.name)),
     '发件人 (EXTRA)': vars.filter(v => v.name.startsWith('EXTRA.')),
     '原邮件 (MAIL)': vars.filter(v => v.name === 'MAIL' || v.name.startsWith('MAIL_ENVELOPE.')),
   };

@@ -46,6 +46,11 @@ export function PromptPlayground() {
       customInstruction: promptConfig.customInstruction,
       operationType: promptConfig.operationType,
       hasExternalSignature: promptConfig.senderContext.hasExternalSignature,
+      // 模拟用户口吻的变量
+      allMails: promptConfig.allMails,
+      locale: promptConfig.locale,
+      category: promptConfig.category,
+      profiles: promptConfig.profiles,
     });
 
     try {

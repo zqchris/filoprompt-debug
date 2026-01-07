@@ -256,6 +256,73 @@ export function ConfigPanel() {
             className="w-full bg-filo-bg border border-filo-border rounded-lg py-2 px-3 text-sm text-filo-text placeholder:text-filo-text-muted/50"
           />
         </div>
+
+        {/* All Mails - 用户所有邮箱 */}
+        <div>
+          <label className="text-xs text-filo-text-muted mb-1 block">
+            用户邮箱列表 <code className="text-filo-accent">{'{{ALL_MAILS}}'}</code>
+          </label>
+          <input
+            type="text"
+            value={promptConfig.allMails || ''}
+            onChange={(e) => setPromptConfig({ allMails: e.target.value })}
+            placeholder="John <john@work.com>, john@personal.com"
+            className="w-full bg-filo-bg border border-filo-border rounded-lg py-2 px-3 text-sm text-filo-text placeholder:text-filo-text-muted/50"
+          />
+        </div>
+
+        {/* Locale - 用户语言 */}
+        <div>
+          <label className="text-xs text-filo-text-muted mb-1 block">
+            用户语言 <code className="text-filo-accent">{'{{LOCALE}}'}</code>
+          </label>
+          <select
+            value={promptConfig.locale || 'en-US'}
+            onChange={(e) => setPromptConfig({ locale: e.target.value })}
+            className="w-full appearance-none bg-filo-bg border border-filo-border rounded-lg py-2 px-3 pr-10 text-sm text-filo-text"
+          >
+            <option value="en-US">English (US)</option>
+            <option value="zh-CN">简体中文</option>
+            <option value="zh-TW">繁體中文</option>
+            <option value="ja-JP">日本語</option>
+            <option value="ko-KR">한국어</option>
+            <option value="es-ES">Español</option>
+            <option value="fr-FR">Français</option>
+            <option value="de-DE">Deutsch</option>
+          </select>
+        </div>
+
+        {/* Category - Gmail 分类 */}
+        <div>
+          <label className="text-xs text-filo-text-muted mb-1 block">
+            Gmail 分类 <code className="text-filo-accent">{'{{CATEGORY}}'}</code>
+          </label>
+          <select
+            value={promptConfig.category || ''}
+            onChange={(e) => setPromptConfig({ category: e.target.value })}
+            className="w-full appearance-none bg-filo-bg border border-filo-border rounded-lg py-2 px-3 pr-10 text-sm text-filo-text"
+          >
+            <option value="">（未分类）</option>
+            <option value="primary">Primary</option>
+            <option value="social">Social</option>
+            <option value="promotions">Promotions</option>
+            <option value="updates">Updates</option>
+            <option value="forums">Forums</option>
+          </select>
+        </div>
+
+        {/* Profiles - 用户档案 */}
+        <div>
+          <label className="text-xs text-filo-text-muted mb-1 block">
+            用户档案 <code className="text-filo-accent">{'{{PROFILES}}'}</code>
+          </label>
+          <textarea
+            value={promptConfig.profiles || ''}
+            onChange={(e) => setPromptConfig({ profiles: e.target.value })}
+            placeholder="Professional writer, prefers concise responses..."
+            className="w-full h-16 bg-filo-bg border border-filo-border rounded-lg py-2 px-3 text-sm text-filo-text placeholder:text-filo-text-muted/50 resize-none"
+          />
+        </div>
       </div>
     </div>
   );
