@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --filo-bg: #0a0e14;
+  --filo-surface: #0f1419;
+  --filo-border: #1e2530;
+  --filo-border-light: #2a3545;
+  --filo-text: #e6e6e6;
+  --filo-text-muted: #8b949e;
+  --filo-accent: #3b82f6;
+  --filo-accent-hover: #2563eb;
+  --filo-warning: #f59e0b;
+  --filo-error: #ef4444;
+  --filo-success: #22c55e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--filo-bg);
+  color: var(--filo-text);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--filo-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--filo-border-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4555;
+}
+
+/* 代码块样式 */
+.code-block {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 输入框焦点样式 */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--filo-accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* 按钮样式 */
+.btn-primary {
+  @apply bg-filo-accent hover:bg-filo-accent-hover text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-filo-surface border border-filo-border hover:border-filo-border-light text-filo-text font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+/* 卡片样式 */
+.card {
+  @apply bg-filo-surface border border-filo-border rounded-xl;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(59, 130, 246, 0.2);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+/* 加载动画 */
+.loading-spinner {
+  @apply animate-spin rounded-full border-2 border-filo-border border-t-filo-accent;
+}
