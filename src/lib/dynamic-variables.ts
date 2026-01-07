@@ -1,4 +1,5 @@
 import { DynamicVariable, TestEmail, OperationType } from '@/types';
+import { cleanEmailForAI } from './email-cleaner';
 
 // 与生产环境保持一致的动态变量列表
 export const DYNAMIC_VARIABLES: DynamicVariable[] = [
@@ -96,8 +97,14 @@ export const DYNAMIC_VARIABLES: DynamicVariable[] = [
   {
     name: 'MAIL',
     placeholder: '{{MAIL}}',
-    description: '原邮件完整内容',
-    example: 'From: sender@example.com\nSubject: Hello\n\nEmail body...',
+    description: '原邮件（已清理，保留结构）',
+    example: '=== EMAIL HEADERS ===\nFrom: sender@example.com\n...',
+  },
+  {
+    name: 'MAIL_RAW',
+    placeholder: '{{MAIL_RAW}}',
+    description: '原邮件完整原始内容（包含所有 MIME 结构）',
+    example: 'Delivered-To: ...\nReceived: ...\n...',
   },
   {
     name: 'MAIL_ENVELOPE.mailPrimaryLanguage',
@@ -141,10 +148,12 @@ const OPERATION_TYPE_MAP: Record<OperationType, string> = {
   todo: 'TODO',
 };
 
-// 构建 MAIL 格式的邮件内容 - 直接使用原始邮件
+// 构建 MAIL 格式的邮件内容 - 清理冗余内容，保留关键结构
 function formatMailContent(email: TestEmail): string {
-  // 直接返回原始邮件内容，不做任何处理
-  return email.rawEml || '';
+  if (!email.rawEml) return '';
+  
+  // 使用清理函数去除冗余 CSS/HTML，保留邮件结构
+  return cleanEmailForAI(email.rawEml);
 }
 
 // 检测邮件语言（简化版）
@@ -208,6 +217,7 @@ export function replaceDynamicVariables(
     result = result.replace(/\{\{EXTRA\.subject\}\}/g, context.email.subject || '');
     
     result = result.replace(/\{\{MAIL\}\}/g, formatMailContent(context.email));
+    result = result.replace(/\{\{MAIL_RAW\}\}/g, context.email.rawEml || '');
     result = result.replace(/\{\{MAIL_ENVELOPE\.from\}\}/g, context.email.from || '');
     result = result.replace(/\{\{MAIL_ENVELOPE\.to\}\}/g, context.email.to || '');
     result = result.replace(/\{\{MAIL_ENVELOPE\.subject\}\}/g, context.email.subject || '');
@@ -220,6 +230,7 @@ export function replaceDynamicVariables(
     result = result.replace(/\{\{EXTRA\.cc\}\}/g, '');
     result = result.replace(/\{\{EXTRA\.subject\}\}/g, '');
     result = result.replace(/\{\{MAIL\}\}/g, '');
+    result = result.replace(/\{\{MAIL_RAW\}\}/g, '');
     result = result.replace(/\{\{MAIL_ENVELOPE\.from\}\}/g, '');
     result = result.replace(/\{\{MAIL_ENVELOPE\.to\}\}/g, '');
     result = result.replace(/\{\{MAIL_ENVELOPE\.subject\}\}/g, '');
@@ -302,7 +313,7 @@ export function getVariablesForOperation(operationType: string): DynamicVariable
   
   if (emailOperations.includes(operationType)) {
     const mailVars = DYNAMIC_VARIABLES.filter(v => 
-      v.name === 'MAIL' || v.name.startsWith('MAIL_ENVELOPE.')
+      v.name === 'MAIL' || v.name === 'MAIL_RAW' || v.name.startsWith('MAIL_ENVELOPE.')
     );
     return [...baseVars, ...mailVars];
   }
@@ -318,6 +329,6 @@ export function getGroupedVariables(operationType: string): Record<string, Dynam
     '时间': vars.filter(v => v.name === 'CURRENT_DATE_TIME'),
     '用户口吻': vars.filter(v => ['ALL_MAILS', 'CUSTOM_INSTRUCTION', 'LOCALE', 'CATEGORY', 'PROFILES'].includes(v.name)),
     '发件人 (EXTRA)': vars.filter(v => v.name.startsWith('EXTRA.')),
-    '原邮件 (MAIL)': vars.filter(v => v.name === 'MAIL' || v.name.startsWith('MAIL_ENVELOPE.')),
+    '原邮件 (MAIL)': vars.filter(v => v.name === 'MAIL' || v.name === 'MAIL_RAW' || v.name.startsWith('MAIL_ENVELOPE.')),
   };
 }
