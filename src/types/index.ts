@@ -143,6 +143,41 @@ export interface PromptTemplate {
   updatedAt: string;
 }
 
+// 满意结果（基准结果）
+export interface GoldenResult {
+  id: string;
+  emailId: string;           // 关联的邮件 ID
+  operationType: OperationType;  // 操作类型
+  prompt: string;            // 生成时使用的 prompt
+  output: string;            // 满意的输出结果
+  notes?: string;            // 备注
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 评分结果
+export interface ComparisonScore {
+  score: number;             // 1-100 分
+  reasoning: string;         // 评分理由
+  improvements: string[];    // 新结果的改进点
+  regressions: string[];     // 新结果的退步点
+  recommendation: 'keep_new' | 'keep_old' | 'review'; // 建议
+}
+
+// 批量测试单项结果（包含评分）
+export interface BatchTestItemResult {
+  emailId: string;
+  emailSubject: string;
+  success: boolean;
+  output?: string;
+  error?: string;
+  latencyMs?: number;
+  // 与满意结果的对比
+  hasGoldenResult: boolean;
+  goldenOutput?: string;
+  comparison?: ComparisonScore;
+}
+
 // 写作工具类型
 export type WritingToolType = 
   | 'expand'           // 加长

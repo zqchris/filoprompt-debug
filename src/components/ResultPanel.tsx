@@ -17,7 +17,7 @@ import {
   Save
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { WritingToolType } from '@/types';
+import { WritingToolType, GoldenResult } from '@/types';
 
 interface WritingToolConfig {
   id: WritingToolType;
@@ -40,6 +40,9 @@ export function ResultPanel() {
     aiProvider,
     aiModel,
     setAIResponse,
+    selectedEmail,
+    promptConfig,
+    operationPrompts,
   } = useAppStore();
 
   const [showReasoning, setShowReasoning] = useState(true);
@@ -50,11 +53,77 @@ export function ResultPanel() {
   const [editPrompt, setEditPrompt] = useState('');
   const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
+  
+  // 满意结果相关状态
+  const [savingGolden, setSavingGolden] = useState(false);
+  const [savedGolden, setSavedGolden] = useState(false);
+  const [goldenResult, setGoldenResult] = useState<GoldenResult | null>(null);
+  const [goldenNotes, setGoldenNotes] = useState('');
 
   useEffect(() => {
     setMounted(true);
     loadWritingTools();
   }, []);
+
+  // 加载当前邮件+操作的满意结果
+  useEffect(() => {
+    if (selectedEmail && promptConfig.operationType) {
+      loadGoldenResult();
+    } else {
+      setGoldenResult(null);
+    }
+  }, [selectedEmail?.id, promptConfig.operationType]);
+
+  const loadGoldenResult = async () => {
+    if (!selectedEmail) return;
+    try {
+      const res = await fetch(
+        `/api/golden-results?emailId=${selectedEmail.id}&operationType=${promptConfig.operationType}`
+      );
+      const result = await res.json();
+      if (result.success && result.data.length > 0) {
+        setGoldenResult(result.data[0]);
+      } else {
+        setGoldenResult(null);
+      }
+    } catch (error) {
+      console.error('Failed to load golden result:', error);
+    }
+  };
+
+  const saveAsGoldenResult = async () => {
+    if (!selectedEmail || !aiResponse?.output) return;
+
+    setSavingGolden(true);
+    try {
+      const currentPrompt = operationPrompts[promptConfig.operationType] || '';
+      const res = await fetch('/api/golden-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailId: selectedEmail.id,
+          operationType: promptConfig.operationType,
+          prompt: currentPrompt,
+          output: aiResponse.output,
+          notes: goldenNotes || undefined,
+        }),
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        setGoldenResult(result.data);
+        setSavedGolden(true);
+        setTimeout(() => setSavedGolden(false), 2000);
+      } else {
+        alert('保存失败: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Save golden result error:', error);
+      alert('保存失败');
+    } finally {
+      setSavingGolden(false);
+    }
+  };
 
   const loadWritingTools = async () => {
     try {
@@ -242,6 +311,58 @@ export function ResultPanel() {
                   ))}
                 </div>
               </div>
+
+              {/* 保存为满意结果 */}
+              {selectedEmail && (
+                <div className="pt-3 border-t border-filo-border">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-filo-text-muted uppercase tracking-wide">
+                      Golden Result
+                    </span>
+                    {goldenResult && (
+                      <span className="text-xs text-filo-success">
+                        ✓ 已保存基准
+                      </span>
+                    )}
+                  </div>
+                  
+                  {goldenResult ? (
+                    <div className="text-xs text-filo-text-muted mb-2 p-2 bg-filo-bg rounded">
+                      <p>当前基准结果保存于 {new Date(goldenResult.updatedAt).toLocaleString()}</p>
+                      {goldenResult.notes && <p className="mt-1">备注: {goldenResult.notes}</p>}
+                    </div>
+                  ) : null}
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={goldenNotes}
+                      onChange={(e) => setGoldenNotes(e.target.value)}
+                      placeholder="备注（可选）"
+                      className="flex-1 text-xs bg-filo-bg border border-filo-border rounded px-2 py-1.5"
+                    />
+                    <button
+                      onClick={saveAsGoldenResult}
+                      disabled={savingGolden}
+                      className={cn(
+                        "px-3 py-1.5 text-xs rounded-lg flex items-center gap-1.5 transition-all",
+                        savedGolden
+                          ? "bg-filo-success/20 text-filo-success"
+                          : "bg-filo-accent/20 text-filo-accent hover:bg-filo-accent/30"
+                      )}
+                    >
+                      {savingGolden ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : savedGolden ? (
+                        <Check className="w-3 h-3" />
+                      ) : (
+                        <Save className="w-3 h-3" />
+                      )}
+                      {goldenResult ? '更新基准' : '保存为基准'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-8 text-filo-text-muted">

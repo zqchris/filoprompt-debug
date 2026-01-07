@@ -88,6 +88,20 @@ function initSchema(database: Database.Database) {
       updated_at TEXT DEFAULT (datetime('now'))
     );
 
+    -- 满意结果（Golden Results）表
+    CREATE TABLE IF NOT EXISTS golden_results (
+      id TEXT PRIMARY KEY,
+      email_id TEXT NOT NULL,
+      operation_type TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      output TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(email_id, operation_type),
+      FOREIGN KEY (email_id) REFERENCES test_emails(id) ON DELETE CASCADE
+    );
+
     -- 创建索引
     CREATE INDEX IF NOT EXISTS idx_test_emails_subject ON test_emails(subject);
     CREATE INDEX IF NOT EXISTS idx_test_results_email_id ON test_results(test_email_id);

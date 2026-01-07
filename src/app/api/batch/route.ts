@@ -1,19 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callAI, getDefaultAIConfig } from '@/lib/ai-providers';
-import { buildPrompt } from '@/lib/prompt-builder';
-import { 
-  getTestEmailById, 
-  saveBatchTest,
-  getAllBatchTests 
-} from '@/lib/email-store';
-import { generateId } from '@/lib/db';
+import { getTestEmailById, saveBatchTest, getAllBatchTests } from '@/lib/email-store';
+import { getDb, generateId } from '@/lib/db';
+import { buildFinalPrompt } from '@/lib/dynamic-variables';
 import { 
   PromptTestConfig, 
   AIProvider, 
-  TestResult, 
   BatchTestResult,
-  TestEmail 
+  BatchTestItemResult,
+  ComparisonScore,
+  OperationType,
 } from '@/types';
+
+// 获取 operation prompt
+function getOperationPrompt(operationType: string): string {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT prompt FROM operation_prompts WHERE operation_type = ?
+  `).get(operationType) as any;
+  return row?.prompt || '';
+}
+
+// 获取 golden result
+function getGoldenResult(emailId: string, operationType: string): { output: string } | null {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT output FROM golden_results WHERE email_id = ? AND operation_type = ?
+  `).get(emailId, operationType) as any;
+  return row ? { output: row.output } : null;
+}
+
+// 构建评分对比 prompt
+function buildComparisonPrompt(
+  originalEmail: string,
+  goldenOutput: string,
+  newOutput: string,
+  operationType: string
+): string {
+  return `You are an expert email quality evaluator. Compare two AI-generated outputs for the same email task.
+
+## Task Type: ${operationType}
+
+## Original Email
+${originalEmail}
+
+## Reference Output (User's Approved Result)
+${goldenOutput}
+
+## New Output (To Be Evaluated)
+${newOutput}
+
+## Scoring
+Score from 1-100:
+- 50 = Equal quality
+- 51-100 = New is better (higher = much better)
+- 1-49 = New is worse (lower = much worse)
+
+## Response (JSON only, no explanation outside)
+\`\`\`json
+{
+  "score": <number>,
+  "reasoning": "<brief explanation>",
+  "improvements": ["<improvement1>", ...],
+  "regressions": ["<regression1>", ...],
+  "recommendation": "<keep_new|keep_old|review>"
+}
+\`\`\``;
+}
 
 // GET /api/batch - 获取所有批量测试
 export async function GET() {
@@ -32,7 +85,7 @@ export async function GET() {
   }
 }
 
-// POST /api/batch - 运行批量测试
+// POST /api/batch - 运行批量测试（带评分对比）
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -42,12 +95,14 @@ export async function POST(request: NextRequest) {
       config,
       provider,
       model,
+      enableComparison = true,  // 是否启用与 golden result 的对比
     } = body as {
       name: string;
       emailIds: string[];
       config: PromptTestConfig;
       provider?: AIProvider;
       model?: string;
+      enableComparison?: boolean;
     };
 
     // 获取 AI 配置
@@ -55,73 +110,166 @@ export async function POST(request: NextRequest) {
     const aiProvider = provider || defaultConfig.provider;
     const aiModel = model || defaultConfig.model;
 
-    const results: TestResult[] = [];
+    // 获取 operation prompt
+    const operationPrompt = getOperationPrompt(config.operationType);
+    if (!operationPrompt.trim()) {
+      return NextResponse.json(
+        { success: false, error: `请先为 "${config.operationType}" 操作配置 Prompt` },
+        { status: 400 }
+      );
+    }
+
+    const results: BatchTestItemResult[] = [];
     let totalLatency = 0;
     let failed = 0;
+    let comparedCount = 0;
+    let improvedCount = 0;
+    let regressedCount = 0;
 
     // 逐个处理邮件
     for (const emailId of emailIds) {
       const email = getTestEmailById(emailId);
       if (!email) {
+        results.push({
+          emailId,
+          emailSubject: 'Unknown',
+          success: false,
+          error: 'Email not found',
+          hasGoldenResult: false,
+        });
         failed++;
         continue;
       }
 
       try {
-        // 使用邮件内容作为上下文
-        const testConfig: PromptTestConfig = {
-          ...config,
-          userInput: config.userInput || email.body.slice(0, 500),
-        };
+        // 构建完整的 prompt
+        const finalPrompt = buildFinalPrompt(operationPrompt, {
+          email,
+          senderName: config.senderContext.name,
+          senderEmail: config.senderContext.email,
+          userInput: config.userInput,
+          style: config.styleStrategy,
+          customInstruction: config.customInstruction,
+          operationType: config.operationType,
+          hasExternalSignature: config.senderContext.hasExternalSignature,
+        });
 
-        const generatedPrompt = buildPrompt(testConfig, email);
-
+        // 调用 AI 生成结果
         const aiResponse = await callAI({
           provider: aiProvider,
           model: aiModel,
-          prompt: generatedPrompt,
+          prompt: finalPrompt,
         });
 
         totalLatency += aiResponse.latencyMs;
 
+        // 查找 golden result
+        const goldenResult = getGoldenResult(emailId, config.operationType);
+        
+        let comparison: ComparisonScore | undefined;
+        
+        // 如果启用对比且有 golden result
+        if (enableComparison && goldenResult) {
+          comparedCount++;
+          
+          try {
+            // 构建邮件上下文字符串
+            const emailContext = `From: ${email.from}\nTo: ${email.to}\nSubject: ${email.subject}\n\n${email.body}`;
+            
+            // 调用 AI 进行评分对比
+            const comparisonPrompt = buildComparisonPrompt(
+              emailContext,
+              goldenResult.output,
+              aiResponse.output,
+              config.operationType
+            );
+
+            const comparisonResponse = await callAI({
+              provider: aiProvider,
+              model: aiModel,
+              prompt: comparisonPrompt,
+            });
+
+            // 解析评分结果
+            const jsonMatch = comparisonResponse.output.match(/```json\s*([\s\S]*?)\s*```/);
+            const jsonStr = jsonMatch ? jsonMatch[1] : comparisonResponse.output;
+            const parsed = JSON.parse(jsonStr);
+
+            comparison = {
+              score: Math.min(100, Math.max(1, parsed.score || 50)),
+              reasoning: parsed.reasoning || '',
+              improvements: Array.isArray(parsed.improvements) ? parsed.improvements : [],
+              regressions: Array.isArray(parsed.regressions) ? parsed.regressions : [],
+              recommendation: ['keep_new', 'keep_old', 'review'].includes(parsed.recommendation) 
+                ? parsed.recommendation 
+                : 'review',
+            };
+
+            // 统计改进/退步
+            if (comparison.score > 55) improvedCount++;
+            else if (comparison.score < 45) regressedCount++;
+          } catch (compError) {
+            console.error(`Failed to compare for email ${emailId}:`, compError);
+            comparison = {
+              score: 50,
+              reasoning: 'Failed to parse comparison',
+              improvements: [],
+              regressions: [],
+              recommendation: 'review',
+            };
+          }
+        }
+
         results.push({
-          id: generateId(),
-          testEmailId: emailId,
-          config: testConfig,
-          generatedPrompt,
-          aiResponse,
-          createdAt: new Date().toISOString(),
+          emailId,
+          emailSubject: email.subject,
+          success: true,
+          output: aiResponse.output,
+          latencyMs: aiResponse.latencyMs,
+          hasGoldenResult: !!goldenResult,
+          goldenOutput: goldenResult?.output,
+          comparison,
         });
       } catch (error) {
         console.error(`Failed to process email ${emailId}:`, error);
+        results.push({
+          emailId,
+          emailSubject: email.subject,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          hasGoldenResult: false,
+        });
         failed++;
       }
     }
 
-    // 创建批量测试结果
-    const batchResult: BatchTestResult = {
+    // 计算平均分数
+    const scores = results
+      .filter(r => r.comparison?.score)
+      .map(r => r.comparison!.score);
+    const avgScore = scores.length > 0 
+      ? scores.reduce((a, b) => a + b, 0) / scores.length 
+      : null;
+
+    const batchResult = {
       id: generateId(),
-      config: {
-        name,
-        emailIds,
-        promptConfig: config,
-        aiConfig: {
-          provider: aiProvider,
-          model: aiModel,
-        },
-      },
+      name,
+      operationType: config.operationType,
+      prompt: operationPrompt,
       results,
       summary: {
         total: emailIds.length,
-        completed: results.length,
+        completed: results.filter(r => r.success).length,
         failed,
         avgLatencyMs: results.length > 0 ? totalLatency / results.length : 0,
+        // 评分统计
+        comparedCount,
+        improvedCount,
+        regressedCount,
+        avgScore,
       },
       createdAt: new Date().toISOString(),
     };
-
-    // 保存批量测试结果
-    saveBatchTest(batchResult);
 
     return NextResponse.json({
       success: true,
