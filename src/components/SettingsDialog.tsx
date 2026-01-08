@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Save, Loader2, Key, AlertCircle } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { AIProvider } from '@/types';
+import { ALL_MODELS, DEFAULT_MODELS } from '@/lib/models';
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -23,8 +24,8 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const [openaiKeyConfigured, setOpenaiKeyConfigured] = useState(false);
   const [googleKeyConfigured, setGoogleKeyConfigured] = useState(false);
   const [defaultProvider, setDefaultProvider] = useState('gemini');
-  const [openaiModel, setOpenaiModel] = useState('gpt-5.2-chat-latest');
-  const [geminiModel, setGeminiModel] = useState('gemini-2.5-flash');
+  const [openaiModel, setOpenaiModel] = useState(DEFAULT_MODELS.openai);
+  const [geminiModel, setGeminiModel] = useState(DEFAULT_MODELS.gemini);
 
   useEffect(() => {
     setMounted(true);
@@ -234,18 +235,11 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                     onChange={(e) => setGeminiModel(e.target.value)}
                     className="w-full bg-filo-bg border border-filo-border rounded-lg py-2.5 px-3 text-sm text-filo-text"
                   >
-                    <optgroup label="Gemini 3 (最新)">
-                      <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
-                      <option value="gemini-3-pro-preview">gemini-3-pro-preview</option>
-                    </optgroup>
-                    <optgroup label="Gemini 2.5">
-                      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                      <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-                    </optgroup>
-                    <optgroup label="Gemini 2.0">
-                      <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-                      <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
-                    </optgroup>
+                    {ALL_MODELS.gemini.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -257,24 +251,11 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                     onChange={(e) => setOpenaiModel(e.target.value)}
                     className="w-full bg-filo-bg border border-filo-border rounded-lg py-2.5 px-3 text-sm text-filo-text"
                   >
-                    <optgroup label="GPT-5.2 (最新)">
-                      <option value="gpt-5.2-chat-latest">gpt-5.2-chat-latest</option>
-                      <option value="gpt-5.2-pro">gpt-5.2-pro</option>
-                      <option value="gpt-5.2-pro-2025-12-11">gpt-5.2-pro-2025-12-11</option>
-                    </optgroup>
-                    <optgroup label="GPT-5.1 Codex">
-                      <option value="gpt-5.1-codex">gpt-5.1-codex</option>
-                      <option value="gpt-5.1-codex-mini">gpt-5.1-codex-mini</option>
-                      <option value="gpt-5.1-codex-max">gpt-5.1-codex-max</option>
-                    </optgroup>
-                    <optgroup label="GPT-4o">
-                      <option value="gpt-4o">gpt-4o</option>
-                      <option value="gpt-4o-mini">gpt-4o-mini</option>
-                    </optgroup>
-                    <optgroup label="o1 推理模型">
-                      <option value="o1">o1</option>
-                      <option value="o1-mini">o1-mini</option>
-                    </optgroup>
+                    {ALL_MODELS.openai.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

@@ -116,7 +116,9 @@ export async function POST(request: NextRequest) {
     
     // 比对模型配置（默认使用更高质量的模型）
     const compareProvider = comparisonProvider || aiProvider;
-    const compareModel = comparisonModel || (compareProvider === 'gemini' ? 'gemini-2.5-pro' : 'gpt-5.2-pro');
+    // 使用统一配置的默认比对模型
+    const { DEFAULT_COMPARISON_MODELS } = await import('@/lib/models');
+    const compareModel = comparisonModel || DEFAULT_COMPARISON_MODELS[compareProvider];
 
     // 获取 operation prompt
     const operationPrompt = getOperationPrompt(config.operationType);

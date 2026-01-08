@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { DEFAULT_MODELS } from '@/lib/models';
 
 const ENV_FILE_PATH = path.join(process.cwd(), '.env.local');
 
@@ -46,8 +47,8 @@ export async function GET() {
       openaiKeyConfigured: isOpenaiConfigured,
       googleKeyConfigured: isGoogleConfigured,
       defaultProvider: envMap.get('DEFAULT_AI_PROVIDER') || 'gemini',
-      openaiModel: envMap.get('OPENAI_MODEL') || 'gpt-5.2-chat-latest',
-      geminiModel: envMap.get('GEMINI_MODEL') || 'gemini-2.5-flash',
+      openaiModel: envMap.get('OPENAI_MODEL') || DEFAULT_MODELS.openai,
+      geminiModel: envMap.get('GEMINI_MODEL') || DEFAULT_MODELS.gemini,
     };
 
     return NextResponse.json({
@@ -118,8 +119,8 @@ GOOGLE_AI_API_KEY=${envMap.get('GOOGLE_AI_API_KEY') || 'xxx'}
 DEFAULT_AI_PROVIDER=${envMap.get('DEFAULT_AI_PROVIDER') || 'gemini'}
 
 # Default Model
-OPENAI_MODEL=${envMap.get('OPENAI_MODEL') || 'gpt-5.2-chat-latest'}
-GEMINI_MODEL=${envMap.get('GEMINI_MODEL') || 'gemini-2.5-flash'}
+OPENAI_MODEL=${envMap.get('OPENAI_MODEL') || DEFAULT_MODELS.openai}
+GEMINI_MODEL=${envMap.get('GEMINI_MODEL') || DEFAULT_MODELS.gemini}
 `;
 
     // 写入文件

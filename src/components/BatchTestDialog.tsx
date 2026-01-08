@@ -18,6 +18,13 @@ import {
   Star
 } from 'lucide-react';
 import { OperationType, StyleStrategy, BatchTestItemResult, ComparisonScore } from '@/types';
+import { 
+  GENERATION_MODELS, 
+  COMPARISON_MODELS, 
+  DEFAULT_MODELS, 
+  DEFAULT_COMPARISON_MODELS,
+  AIProvider 
+} from '@/lib/models';
 
 interface BatchTestDialogProps {
   selectedEmailIds: string[];
@@ -59,36 +66,6 @@ interface BatchResult {
   };
 }
 
-// 生产模型列表
-const GENERATION_MODELS = {
-  gemini: [
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (快速)' },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-    { value: 'gemini-3-flash', label: 'Gemini 3 Flash' },
-    { value: 'gemini-3-pro', label: 'Gemini 3 Pro' },
-  ],
-  openai: [
-    { value: 'gpt-4o', label: 'GPT-4o (快速)' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-    { value: 'gpt-5.2-chat-latest', label: 'GPT-5.2 Chat' },
-    { value: 'gpt-5.2-pro', label: 'GPT-5.2 Pro' },
-  ],
-};
-
-// 比对模型列表（使用更高质量的模型）
-const COMPARISON_MODELS = {
-  gemini: [
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (推荐)' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    { value: 'gemini-3-pro', label: 'Gemini 3 Pro' },
-  ],
-  openai: [
-    { value: 'gpt-5.2-pro', label: 'GPT-5.2 Pro (推荐)' },
-    { value: 'gpt-5.2-chat-latest', label: 'GPT-5.2 Chat' },
-    { value: 'o1', label: 'o1' },
-  ],
-};
-
 export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogProps) {
   const { aiProvider, aiModel, promptConfig } = useAppStore();
   
@@ -99,14 +76,12 @@ export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogPr
   const [enableComparison, setEnableComparison] = useState(true);
   
   // 生产模型选择
-  const [generationProvider, setGenerationProvider] = useState<'gemini' | 'openai'>(aiProvider);
-  const [generationModel, setGenerationModel] = useState(aiModel);
+  const [generationProvider, setGenerationProvider] = useState<AIProvider>(aiProvider);
+  const [generationModel, setGenerationModel] = useState(aiModel || DEFAULT_MODELS[aiProvider]);
   
   // 比对模型单独选择
-  const [comparisonProvider, setComparisonProvider] = useState<'gemini' | 'openai'>(aiProvider);
-  const [comparisonModel, setComparisonModel] = useState(
-    aiProvider === 'gemini' ? 'gemini-2.5-pro' : 'gpt-5.2-pro'
-  );
+  const [comparisonProvider, setComparisonProvider] = useState<AIProvider>(aiProvider);
+  const [comparisonModel, setComparisonModel] = useState(DEFAULT_COMPARISON_MODELS[aiProvider]);
   
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<BatchResult | null>(null);

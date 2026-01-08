@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AIRequestConfig, AIResponse, AIProvider } from '@/types';
+import { getModelType, DEFAULT_MODELS } from './models';
 
 // OpenAI 客户端
 function getOpenAIClient(): OpenAI {
@@ -20,21 +21,11 @@ function getGeminiClient(): GoogleGenerativeAI {
   return new GoogleGenerativeAI(apiKey);
 }
 
-// 获取模型类型
-type ModelType = 'gpt5' | 'o1' | 'gpt4' | 'legacy';
-
-function getModelType(model: string): ModelType {
-  if (model.startsWith('gpt-5')) return 'gpt5';
-  if (model.startsWith('o1') || model.startsWith('o3')) return 'o1';
-  if (model.startsWith('gpt-4')) return 'gpt4';
-  return 'legacy';
-}
-
 // 调用 OpenAI
 async function callOpenAI(config: AIRequestConfig): Promise<AIResponse> {
   const client = getOpenAIClient();
   const startTime = Date.now();
-  const model = config.model || 'gpt-5.2-chat-latest';
+  const model = config.model || DEFAULT_MODELS.openai;
   const modelType = getModelType(model);
 
   // 构建 messages 数组
@@ -109,7 +100,7 @@ async function callGemini(config: AIRequestConfig): Promise<AIResponse> {
   // Gemini 支持 systemInstruction 作为 system prompt
   // 参考: https://ai.google.dev/gemini-api/docs/system-instructions
   const modelConfig: any = {
-    model: config.model || 'gemini-2.5-flash',
+    model: config.model || DEFAULT_MODELS.gemini,
   };
   
   // 如果有 systemPrompt，使用 systemInstruction
@@ -168,25 +159,13 @@ export async function callAI(config: AIRequestConfig): Promise<AIResponse> {
   }
 }
 
-// 验证过可用的模型列表
+// 从统一配置模块导出模型列表
+export { ALL_MODELS, GENERATION_MODELS, COMPARISON_MODELS } from './models';
+
+// 获取可用的模型列表（向后兼容）
 export function getAvailableModels(provider: AIProvider): string[] {
-  switch (provider) {
-    case 'openai':
-      return [
-        'gpt-5.2-chat-latest', 'gpt-5.2-pro', 'gpt-5.2-pro-2025-12-11',  // GPT-5.2 最新
-        'gpt-5.1-codex', 'gpt-5.1-codex-mini', 'gpt-5.1-codex-max',  // GPT-5.1 Codex
-        'gpt-4o', 'gpt-4o-mini',  // GPT-4o
-        'o1', 'o1-mini',  // o1 推理模型
-      ];
-    case 'gemini':
-      return [
-        'gemini-3-flash-preview', 'gemini-3-pro-preview',  // Gemini 3 最新
-        'gemini-2.5-flash', 'gemini-2.5-pro',  // Gemini 2.5
-        'gemini-2.0-flash', 'gemini-2.0-flash-lite',  // Gemini 2.0
-      ];
-    default:
-      return [];
-  }
+  const models = require('./models').ALL_MODELS;
+  return models[provider]?.map((m: { value: string }) => m.value) || [];
 }
 
 // 默认配置
@@ -194,8 +173,8 @@ export function getDefaultAIConfig(): { provider: AIProvider; model: string } {
   const provider = (process.env.DEFAULT_AI_PROVIDER as AIProvider) || 'gemini';
   const model =
     provider === 'openai'
-      ? process.env.OPENAI_MODEL || 'gpt-5.2-chat-latest'
-      : process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      ? process.env.OPENAI_MODEL || DEFAULT_MODELS.openai
+      : process.env.GEMINI_MODEL || DEFAULT_MODELS.gemini;
   
   return { provider, model };
 }
