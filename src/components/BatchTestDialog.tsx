@@ -59,6 +59,20 @@ interface BatchResult {
   };
 }
 
+// 比对模型列表（使用更高质量的模型）
+const COMPARISON_MODELS = {
+  gemini: [
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (推荐)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { value: 'gemini-3-pro', label: 'Gemini 3 Pro' },
+  ],
+  openai: [
+    { value: 'gpt-5.2-pro', label: 'GPT-5.2 Pro (推荐)' },
+    { value: 'gpt-5.2-chat-latest', label: 'GPT-5.2 Chat' },
+    { value: 'o1', label: 'o1' },
+  ],
+};
+
 export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogProps) {
   const { aiProvider, aiModel, promptConfig } = useAppStore();
   
@@ -68,10 +82,17 @@ export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogPr
   const [userInput, setUserInput] = useState('');
   const [enableComparison, setEnableComparison] = useState(true);
   
+  // 比对模型单独选择
+  const [comparisonProvider, setComparisonProvider] = useState<'gemini' | 'openai'>(aiProvider);
+  const [comparisonModel, setComparisonModel] = useState(
+    aiProvider === 'gemini' ? 'gemini-2.5-pro' : 'gpt-5.2-pro'
+  );
+  
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<BatchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [isSavingAllGolden, setIsSavingAllGolden] = useState(false);
 
   const handleRunBatchTest = async () => {
     setIsRunning(true);
@@ -96,6 +117,9 @@ export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogPr
           provider: aiProvider,
           model: aiModel,
           enableComparison,
+          // 比对模型配置
+          comparisonProvider,
+          comparisonModel,
         }),
       });
 
@@ -111,6 +135,52 @@ export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogPr
     } finally {
       setIsRunning(false);
     }
+  };
+
+  // 一键保存全部结果为基准
+  const saveAllAsGolden = async () => {
+    if (!result) return;
+    
+    const successItems = result.results.filter(item => item.success && item.output);
+    if (successItems.length === 0) {
+      alert('没有可保存的结果');
+      return;
+    }
+
+    const confirmMsg = `确定要将 ${successItems.length} 个结果全部保存为基准吗？\n这会覆盖已有的基准结果。`;
+    if (!confirm(confirmMsg)) return;
+
+    setIsSavingAllGolden(true);
+    let savedCount = 0;
+    let failedCount = 0;
+
+    for (const item of successItems) {
+      try {
+        const res = await fetch('/api/golden-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            emailId: item.emailId,
+            operationType,
+            prompt: result.prompt || '',
+            output: item.output,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          savedCount++;
+        } else {
+          failedCount++;
+        }
+      } catch (error) {
+        console.error('Save golden error:', error);
+        failedCount++;
+      }
+    }
+
+    setIsSavingAllGolden(false);
+    alert(`保存完成！\n成功: ${savedCount} 个\n失败: ${failedCount} 个`);
   };
 
   // 保存单个结果为满意结果
@@ -231,6 +301,17 @@ export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogPr
                 </div>
               </div>
 
+              {/* AI Provider - 生成模型 */}
+              <div>
+                <label className="block text-sm font-medium text-filo-text-muted mb-2">
+                  生成模型（生产用）
+                </label>
+                <div className="bg-filo-bg border border-filo-border rounded-lg py-2 px-3 text-sm text-filo-text">
+                  {aiProvider === 'gemini' ? 'Gemini' : 'OpenAI'} - {aiModel}
+                </div>
+                <p className="text-xs text-filo-text-muted mt-1">在设置中配置</p>
+              </div>
+
               {/* Enable Comparison */}
               <div className="flex items-center gap-3">
                 <input
@@ -245,15 +326,60 @@ export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogPr
                 </label>
               </div>
 
-              {/* AI Provider */}
-              <div>
-                <label className="block text-sm font-medium text-filo-text-muted mb-2">
-                  AI 模型
-                </label>
-                <div className="bg-filo-bg border border-filo-border rounded-lg py-2 px-3 text-sm text-filo-text">
-                  {aiProvider === 'gemini' ? 'Gemini' : 'OpenAI'} - {aiModel}
+              {/* Comparison Model - 比对模型 */}
+              {enableComparison && (
+                <div className="bg-filo-accent/5 border border-filo-accent/20 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-filo-accent" />
+                    <span className="text-sm font-medium text-filo-text">比对模型（评估用，可选更高质量模型）</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Provider */}
+                    <div>
+                      <label className="block text-xs text-filo-text-muted mb-1">提供商</label>
+                      <div className="relative">
+                        <select
+                          value={comparisonProvider}
+                          onChange={(e) => {
+                            const provider = e.target.value as 'gemini' | 'openai';
+                            setComparisonProvider(provider);
+                            setComparisonModel(COMPARISON_MODELS[provider][0].value);
+                          }}
+                          className="w-full appearance-none bg-filo-bg border border-filo-border rounded-lg py-2 px-3 pr-10 text-sm text-filo-text"
+                        >
+                          <option value="gemini">Gemini</option>
+                          <option value="openai">OpenAI</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-filo-text-muted pointer-events-none" />
+                      </div>
+                    </div>
+                    
+                    {/* Model */}
+                    <div>
+                      <label className="block text-xs text-filo-text-muted mb-1">模型</label>
+                      <div className="relative">
+                        <select
+                          value={comparisonModel}
+                          onChange={(e) => setComparisonModel(e.target.value)}
+                          className="w-full appearance-none bg-filo-bg border border-filo-border rounded-lg py-2 px-3 pr-10 text-sm text-filo-text"
+                        >
+                          {COMPARISON_MODELS[comparisonProvider].map((m) => (
+                            <option key={m.value} value={m.value}>
+                              {m.label}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-filo-text-muted pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-filo-text-muted">
+                    💡 比对模型用于评估生成结果与基准的差异，可选择更智能的模型以获得更准确的评分
+                  </p>
                 </div>
-              </div>
+              )}
 
               {/* Error */}
               {error && (
@@ -463,6 +589,20 @@ export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogPr
             </>
           ) : (
             <>
+              {/* 一键保存全部为基准 */}
+              <button 
+                onClick={saveAllAsGolden}
+                disabled={isSavingAllGolden}
+                className="btn-secondary flex items-center gap-2"
+                title="将本次所有成功结果保存为基准（首次运行建议使用）"
+              >
+                {isSavingAllGolden ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {isSavingAllGolden ? '保存中...' : '全部保存为基准'}
+              </button>
               <button 
                 onClick={() => setResult(null)} 
                 className="btn-secondary"

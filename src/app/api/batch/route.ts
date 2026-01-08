@@ -96,6 +96,8 @@ export async function POST(request: NextRequest) {
       provider,
       model,
       enableComparison = true,  // 是否启用与 golden result 的对比
+      comparisonProvider,  // 比对专用提供商
+      comparisonModel,     // 比对专用模型
     } = body as {
       name: string;
       emailIds: string[];
@@ -103,12 +105,18 @@ export async function POST(request: NextRequest) {
       provider?: AIProvider;
       model?: string;
       enableComparison?: boolean;
+      comparisonProvider?: AIProvider;
+      comparisonModel?: string;
     };
 
     // 获取 AI 配置
     const defaultConfig = getDefaultAIConfig();
     const aiProvider = provider || defaultConfig.provider;
     const aiModel = model || defaultConfig.model;
+    
+    // 比对模型配置（默认使用更高质量的模型）
+    const compareProvider = comparisonProvider || aiProvider;
+    const compareModel = comparisonModel || (compareProvider === 'gemini' ? 'gemini-2.5-pro' : 'gpt-5.2-pro');
 
     // 获取 operation prompt
     const operationPrompt = getOperationPrompt(config.operationType);
@@ -184,9 +192,10 @@ export async function POST(request: NextRequest) {
               config.operationType
             );
 
+            // 使用独立的比对模型进行评分
             const comparisonResponse = await callAI({
-              provider: aiProvider,
-              model: aiModel,
+              provider: compareProvider,
+              model: compareModel,
               prompt: comparisonPrompt,
             });
 
