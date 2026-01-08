@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-01-08
+
+### Changed
+- **Centralized Model Configuration**: All AI model definitions now in single `src/lib/models.ts`
+  - Eliminates duplicate model lists across components
+  - Single source of truth for available models
+  - Model tier classification (fast/balanced/premium)
+
+### Fixed
+- **Invalid Model Names**: Fixed non-existent models (gemini-3-flash → gemini-2.5-flash)
+- **Default Models**: Now use verified working models (gpt-4o, gemini-2.5-flash)
+
 ## [1.1.1] - 2026-01-08
 
 ### Added
