@@ -59,6 +59,22 @@ interface BatchResult {
   };
 }
 
+// 生产模型列表
+const GENERATION_MODELS = {
+  gemini: [
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (快速)' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'gemini-3-flash', label: 'Gemini 3 Flash' },
+    { value: 'gemini-3-pro', label: 'Gemini 3 Pro' },
+  ],
+  openai: [
+    { value: 'gpt-4o', label: 'GPT-4o (快速)' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'gpt-5.2-chat-latest', label: 'GPT-5.2 Chat' },
+    { value: 'gpt-5.2-pro', label: 'GPT-5.2 Pro' },
+  ],
+};
+
 // 比对模型列表（使用更高质量的模型）
 const COMPARISON_MODELS = {
   gemini: [
@@ -81,6 +97,10 @@ export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogPr
   const [styleStrategy, setStyleStrategy] = useState<StyleStrategy>('Professional');
   const [userInput, setUserInput] = useState('');
   const [enableComparison, setEnableComparison] = useState(true);
+  
+  // 生产模型选择
+  const [generationProvider, setGenerationProvider] = useState<'gemini' | 'openai'>(aiProvider);
+  const [generationModel, setGenerationModel] = useState(aiModel);
   
   // 比对模型单独选择
   const [comparisonProvider, setComparisonProvider] = useState<'gemini' | 'openai'>(aiProvider);
@@ -114,8 +134,8 @@ export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogPr
               hasExternalSignature: false,
             },
           },
-          provider: aiProvider,
-          model: aiModel,
+          provider: generationProvider,
+          model: generationModel,
           enableComparison,
           // 比对模型配置
           comparisonProvider,
@@ -306,10 +326,49 @@ export function BatchTestDialog({ selectedEmailIds, onClose }: BatchTestDialogPr
                 <label className="block text-sm font-medium text-filo-text-muted mb-2">
                   生成模型（生产用）
                 </label>
-                <div className="bg-filo-bg border border-filo-border rounded-lg py-2 px-3 text-sm text-filo-text">
-                  {aiProvider === 'gemini' ? 'Gemini' : 'OpenAI'} - {aiModel}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Provider */}
+                  <div>
+                    <label className="block text-xs text-filo-text-muted mb-1">提供商</label>
+                    <div className="relative">
+                      <select
+                        value={generationProvider}
+                        onChange={(e) => {
+                          const provider = e.target.value as 'gemini' | 'openai';
+                          setGenerationProvider(provider);
+                          setGenerationModel(GENERATION_MODELS[provider][0].value);
+                        }}
+                        className="w-full appearance-none bg-filo-bg border border-filo-border rounded-lg py-2 px-3 pr-10 text-sm text-filo-text"
+                      >
+                        <option value="gemini">Gemini</option>
+                        <option value="openai">OpenAI</option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-filo-text-muted pointer-events-none" />
+                    </div>
+                  </div>
+                  
+                  {/* Model */}
+                  <div>
+                    <label className="block text-xs text-filo-text-muted mb-1">模型</label>
+                    <div className="relative">
+                      <select
+                        value={generationModel}
+                        onChange={(e) => setGenerationModel(e.target.value)}
+                        className="w-full appearance-none bg-filo-bg border border-filo-border rounded-lg py-2 px-3 pr-10 text-sm text-filo-text"
+                      >
+                        {GENERATION_MODELS[generationProvider].map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-filo-text-muted pointer-events-none" />
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-filo-text-muted mt-1">在设置中配置</p>
+                <p className="text-xs text-filo-text-muted mt-2">
+                  💡 生产模型用于生成邮件内容，建议选择性价比高的模型
+                </p>
               </div>
 
               {/* Enable Comparison */}
