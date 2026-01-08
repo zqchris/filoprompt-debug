@@ -16,9 +16,9 @@ export interface ModelOption {
 // Gemini 模型列表
 // =====================
 export const GEMINI_MODELS: ModelOption[] = [
-  // Gemini 3 系列（最新）
-  { value: 'gemini-3-flash', label: 'Gemini 3 Flash', tier: 'fast', description: '最新快速模型' },
-  { value: 'gemini-3-pro', label: 'Gemini 3 Pro', tier: 'premium', description: '最新高级模型' },
+  // Gemini 3 系列（preview 版本）
+  { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash', tier: 'fast', description: '最新快速模型' },
+  { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro', tier: 'premium', description: '最新高级模型' },
   // 2.5 系列
   { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'fast', description: '快速、高性价比' },
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', tier: 'balanced', description: '均衡性能' },
@@ -54,7 +54,7 @@ export const GENERATION_MODELS = {
 // 比对/评估模型（可用更高质量）
 export const COMPARISON_MODELS = {
   gemini: [
-    { value: 'gemini-3-pro', label: 'Gemini 3 Pro (推荐)', tier: 'premium' as const },
+    { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (推荐)', tier: 'premium' as const },
     { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', tier: 'balanced' as const },
   ],
   openai: [
@@ -80,7 +80,7 @@ export const DEFAULT_MODELS = {
 
 // 默认比对模型（评估用，可用更高质量）
 export const DEFAULT_COMPARISON_MODELS = {
-  gemini: 'gemini-3-pro',
+  gemini: 'gemini-3-pro-preview',
   openai: 'gpt-5.2-pro',
 };
 
