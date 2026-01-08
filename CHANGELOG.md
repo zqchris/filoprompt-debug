@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-01-08
+
+### Added
+- **Generation Model Selector**: Batch test now allows selecting generation model (provider + model)
+  - Can choose different models for generation vs comparison per batch run
+  - Defaults to global settings but can be customized
+
 ## [1.1.0] - 2026-01-08
 
 ### Added
