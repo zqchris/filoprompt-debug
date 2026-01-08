@@ -1,6 +1,6 @@
 {
   "name": "filoprompt-debug",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Local prompt debugging tool for Filo Mail",
   "private": true,
   "scripts": {

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-01-08
+
+### Fixed
+- **Restored GPT-5.2 and Gemini 3 Models**: Re-added models that were incorrectly removed
+  - GPT-5.2: `gpt-5.2-chat-latest`, `gpt-5.2-pro`
+  - Gemini 3: `gemini-3-flash`, `gemini-3-pro`
+- **Model API Parameters**: Ensured correct parameters for each model type
+  - GPT-5.2: `max_completion_tokens`, no `temperature`
+  - Gemini 3: `thinkingBudget: 0` to disable thinking mode
+
 ## [1.2.0] - 2026-01-08
 
 ### Changed
